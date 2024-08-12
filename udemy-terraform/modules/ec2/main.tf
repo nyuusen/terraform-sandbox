@@ -1,11 +1,12 @@
 resource "aws_instance" "this" {
-  ami           = "ami-0a0b7b240264a48d7"
+  ami           = "ami-0b828c1c5ac3f13ee"
   instance_type = "t2.micro"
-  
-  vpc_security_group_ids = [aws_security_group.this.id]
-  
-  user_data = file("${path.module}/user_data.sh")
 
+  subnet_id                   = var.subnet_id
+  vpc_security_group_ids      = [aws_security_group.this.id]
+  associate_public_ip_address = true
+
+  user_data                   = file("${path.module}/user_data.sh")
   user_data_replace_on_change = true
 
   tags = {
@@ -17,8 +18,13 @@ resource "random_id" "this" {
   byte_length = 8
 }
 
+data "aws_subnet" "this" {
+  id = var.subnet_id
+}
+
 resource "aws_security_group" "this" {
-  name = "udemy-terraform-ec2-sg-${random_id.this.hex}"
+  name   = "udemy-terraform-ec2-sg-${random_id.this.hex}"
+  vpc_id = data.aws_subnet.this.vpc_id
 }
 
 resource "aws_security_group_rule" "ssh" {
@@ -32,16 +38,6 @@ resource "aws_security_group_rule" "ssh" {
   security_group_id = aws_security_group.this.id
 }
 
-resource "aws_security_group_rule" "http" {
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.this.id
-}
-
-# Nginxをインストールするため、EC2からの通信のあらゆるIPやプロトコルを許可
 resource "aws_security_group_rule" "egress" {
   type              = "egress"
   from_port         = 0
